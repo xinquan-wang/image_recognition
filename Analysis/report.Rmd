@@ -1,0 +1,53 @@
+---
+title: "Untitled"
+author: "Xinquan Wang"
+date: "3/12/2019"
+output: html_document
+---
+## Introduction
+This project will implement 10 machine learning models to solve image recognition problem. We will also evaluate the models' performance in terms of model type, sample size and running time and further discuss their pros and cons.  
+The dataset we used is a set of images for different types of apparel from Zalando's article, consisting of a training set of 60,000 examples and a test set of 10,000 examples. The original dataset divided each image into 784 (28 by 28) pixels. And in our project, we have condensed these data into 49 pixels (7 by 7) per image to simplify the computations. For each dataset, we have a column called *label* which indicates the type of the product and 49 columns for *pixels*, Denoted as *pixels1*, *pixels2*, ... ,*pixels49*, these *pixels* columns provide the measurement for the images in grayscale.  
+To solve the challenge, we first generate 9 different samples with 3 different sizes and 3 iterations each. Fro each sample,
+we appliy the following 10 models to generate the predictive classification results.  
+1. Multinomial logistic regression  
+2. K-Nearest Neighbors 
+3. Classification Tree
+4. Random Forest  
+5. Ridge Regression  
+6. Lasso Regression 
+7. Support Vector Machines
+8. Generalized Boosted Regression Models - gbm  
+9. Generalized Boosted Regression Models - xgboost  
+10. Ensemble model: Neural Network + SVM  
+In order to evaluate their quality, we introduce a score function by balancing the sample size, running time and prediction accuracy. Based on these results, we make some comparisons between these models, idntifying the "best" model for our dataset.
+
+## Ridge Regression
+Ridge Regression is used to analyze multiple regression data with multicollinearity. It is simple and can prevent overfitting by adding a L2 penalty term in the cost funciton. However, due to its trading variance for bias, the output from ridge regression is not unbiased. From the scoreboard, we can tell that as sample size increases, model scores increase as well which is not desired, since our goal is to minimize the value of *Points*. Let's take a further look at the *A*, *B*, *C* score respectively. *A* score is not very informative because it's a kind of "fixed" value for each sample. It is interesting to see that the values of proportion of the predictions on the testing set that are incorrectly classified don't vary much among these 9 datasets. But running time increases dramatically as the sample size grows which is responsible for the high variability of *Points*. This may imply that ridge regression may be highly time-consuming in large sample.
+
+
+## K-Nearest Neighbors   
+K-Nearest Neighbors (KNN) is a non-parametric method. It is an algorithm that is useful for making classifications/predictions when there are potential non-linear boundaries separating classes or values. It is commonly used for its easy of interpretation and implementation. In our classification setting, KNN calculates the distance between a test object and all training objects. The test point will be assigned to the class that is most common among its **k** nearest neighbors. We do a trick here. Since we already know there are 10 different types of product, so it is reasonable to pick **k** = 10 in the KNN model. Notice that KNN performs better in large sample and the accuracy gets higher as sample size grows. Although it works well and quick in our problem, the computaion speed tends to decrease very fast as dataset grows due to the computation and sorting of distances between the test point and every training points. And it does not learn anything from the training data and simply uses the training data itself for classification! The other drawbacks of KNN lies in that it's hard to determine the value of **k**. In our case, the value of **k** is easy to spot but for other settings, there's no rule of thumb. And the computaion speed tends to decrease very fast as dataset grows due to the computation of distances between the test point and every training points. In addition, KNN will fail if the sample is not balance.
+
+## SVM
+Support Vector Machine is a supervised, non-linear, non-parametric classification technique. It constructs a hyperplane in an N-dimensional space which maximizes the distance to the nearest data points of any classes. Maximizing the margin distance provides some reinforcement so that future data points can be classified with more confidence. SVM does well on both structured and unstructured data. By generalizing data, SVM seems to have lower risk suffering from overfitting. Also, it delivers a unique solution, since the optimality problem is convex. The effectiveness of SVM is supported by our results. It does good job in terms of *Points* which are generally lower than other methods. Although it's an elegant and powerful algorithm, the results are difficult to understand and interpret. And the long training time for large datasets can not be ignored either.
+
+## Discussion
+result of models: best? worst? reason?
+
+Changing the weights of sample size component *A* the running time factor *B* or the accuracy *C* will definitely effect the model evaluation. If we give more weight on *A*, the value of *Points* will be dominated by the sample size. Therefore, different models with the same sample size may have similar scores. As for attaching more weight on *B*, then we are trying to stress more attention on the running time. The model with least running time will win. So it is possible that the models with sample size of 500 are potential winners, since in general the smaller the sample, the less the running time.  
+If given the computing resources to explore a wider variety of models and sample sizes, we would choose the sample size with different scales to get more distinct dataset. And maybe we can filter the models that are not appriopiate for large dataset out before modeling large data. ...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

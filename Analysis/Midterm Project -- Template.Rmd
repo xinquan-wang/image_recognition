@@ -1,0 +1,358 @@
+---
+title: "Applied Data Science:  Midterm Project"
+author: ""
+date: ""
+output:
+  prettydoc::html_pretty:
+  theme: cayman
+highlight: github
+---
+
+```{r setup, include=FALSE}
+set.seed(72)
+knitr::opts_chunk$set(echo = TRUE, comment="", warning = FALSE, message = FALSE, tidy.opts=list(width.cutoff=55))
+```
+
+```{r libraries, echo = FALSE}
+library(data.table)
+library(DT)
+library(class)
+library(glmnet)
+library(caret)
+library(e1071)
+library(psych)
+library(nnet)
+library(neuralnet)
+```
+
+```{r source_files}
+train.file <- "../Data/MNIST-fashion training set-49.csv"
+test.file <- "../Data/MNIST-fashion testing set-49.csv"
+```
+
+```{r functions}
+# round function 
+round.numerics <- function(x, digits){
+  if(is.numeric(x)){
+    x <- round(x = x, digits = digits)
+  }
+  return(x)
+}
+
+# rmse
+my.rmse <- function(predicted, actual, na.rm =TRUE) {
+  return(sqrt(mean((predicted -actual)^2, na.rm = na.rm)))
+}
+
+# classification percentage
+percentage.correctly.classified <- function(predicted, actual,na.rm =TRUE) {
+  return(mean(predicted ==actual, na.rm = na.rm))
+}
+
+# sample function
+sample_fn <- function(data, size){
+  result <- data[sample(x= 1:nrow(data), size = size, replace = F)]
+  return (result)
+}
+
+# create formula
+create.formula <- function(outcome.name, input.names, input.patterns = NA,
+                         all.data.names = NA, return.as = "character") {    
+  variable.names.from.patterns <- c()
+  if (!is.na(input.patterns[1]) & !is.na(all.data.names[1])) {        
+    pattern <- paste(input.patterns, collapse = "|")        
+    variable.names.from.patterns <- all.data.names[grep(pattern = pattern,
+                                                        x = all.data.names)]    
+  }    
+  all.input.names <- unique(c(input.names, variable.names.from.patterns))    
+  all.input.names <- all.input.names[all.input.names != outcome.name]
+  if (!is.na(all.data.names[1])) {        
+    all.input.names <- all.input.names[all.input.names %in% all.data.names]    
+  }    
+  input.names.delineated <- sprintf("`%s`", all.input.names)    
+  the.formula <- sprintf("`%s` ~ %s", outcome.name, paste(input.names.delineated,
+                                                          collapse =" + "))
+  if (return.as == "formula") {
+    return(as.formula(the.formula))    
+  }
+  if (return.as != "formula") {
+    return(the.formula)    
+  }
+}
+
+# creat x and y
+create.x.and.y <-function(the.formula, data) {
+  require(data.table)
+  setDT(data)    
+  x <- model.matrix(object = as.formula(the.formula), data = data)    
+  y.name <- trimws(x = gsub(pattern = "`", replacement = "", 
+                            x = strsplit(x = the.formula, split = "~")[[1]][1],fixed =TRUE))    
+  y <- data[as.numeric(rownames(x)), get(y.name)]
+  return(list(x = x, y = y))}
+
+# define scoring function
+scoring <- function(model, data.name){
+  data <- get(data.name)
+  A <- (nrow(data) / nrow(dat.train)) %>% round.numerics(., 4)
+  B <- min(1, model[[2]]/60) %>% round.numerics(., 4)
+  C <- mean(model[[1]] != dat.test$label) %>% round.numerics(., 4)
+  points <- (0.25*A + 0.25*B + 0.5*C) %>% round.numerics(., 4)
+  result <- as.data.frame(cbind("Sample Size" = nrow(data), "Data" = data.name,
+                                "A" = A, "B" = B, "C" = C, "Points" = points))
+  return(result)
+}
+
+```
+
+```{r constants}
+n.values <- c(500, 1000, 2000)
+iterations <- 3
+```
+
+```{r load_data}
+dat.train <- fread(input = train.file, verbose = FALSE)
+dat.test <- fread(input = test.file, verbose = FALSE)
+```
+
+```{r clean_data}
+#check if any bad apple in independent variables
+str(dat.train)
+
+#check missing value
+sum(is.na(dat.train))
+sum(is.na(dat.test))
+
+#check if there is any pixels out of [0,255]
+sum(dat.train[, -1] < 0 | dat.train[, -1] > 255)
+sum(dat.test[, -1] < 0 | dat.test[, -1] > 255)
+
+#check whether there is any speical in the label name in train/test data set
+unique(dat.train[,1])
+unique(dat.test[,1])
+```
+
+```{r generate_samples}
+sample_dat = c()
+for (i in n.values){
+  for (j in 1:iterations){
+    sample = sample_fn(dat.train,eval(i))
+    name = paste0("dat_",eval(i),"_",eval(j))
+    assign(name,sample)
+    sample_dat = append(sample_dat,name)
+    }
+  }
+sample_dat
+```
+
+## Introduction
+
+
+### Model 1: Ridge Regression
+
+
+```{r code_ridge regression_development, eval = TRUE}
+fashion.name <- "label"
+input.names <- names(dat.train[, -1])
+formula.fashion <- create.formula(outcome.name = fashion.name, input.names = input.names)
+
+# ridge regression model
+model.ridge.regression <- function(train.name) {
+  tic <- Sys.time()
+  train.data <- get(train.name)
+  x.y.train <- create.x.and.y(the.formula = formula.fashion,
+                             data = train.data) 
+  # fit ridge regression model
+  mod <- cv.glmnet(x = x.y.train$x, y = x.y.train$y, family = "multinomial", 
+               alpha = 0)   
+  x.y.test <- create.x.and.y(the.formula = formula.fashion,
+                             data = dat.test)   
+  # prediction
+  y.predict <- predict(object = mod, newx = x.y.test$x, type ="class", s = mod$lambda.min)    
+  toc <- Sys.time()
+  run_time <- (toc - tic) %>% as.numeric(., units = "secs")
+  return(list(y.predict, run_time))
+}
+```
+
+
+```{r load_ridge regression}
+score.ridge.regression <- data.table()
+for (i in sample_dat){
+  mod <- model.ridge.regression(i)
+  score.ridge.regression <- rbind(score.ridge.regression, scoring(mod, i)) 
+}
+score.ridge.regression <- cbind("Model" = "Ridge Regression", score.ridge.regression)
+datatable(score.ridge.regression)
+```
+
+### Model 2:  K-Nearest Neighbors 
+
+
+```{r code_knn_development, eval = TRUE}
+# knn model
+model.knn <- function(train.name){
+    tic <- Sys.time()
+    train.data <- get(train.name)
+    mod <- knn(train = train.data[, -1], test = dat.test[, -1], cl = train.data$label, k = 5)
+    toc <- Sys.time()
+    run_time <- (toc - tic) %>% as.numeric(., units = "secs")
+    return(list(mod, run_time))
+}
+```
+
+```{r load_knn}
+# iteration on 9 sample sizes
+score.knn <- data.table()
+for (i in sample_dat){
+  mod <- model.knn(i)
+  score.knn <- rbind(score.knn, scoring(mod, i)) 
+}
+score.knn <- cbind("Model" = "K-Nearest Neighbors", score.knn)
+datatable(score.knn)
+```
+
+### Model 3:  Support Vector Machines
+
+
+```{r code_SVM_development, eval = TRUE}
+# svm model
+model.svm <- function(train.name){
+  tic <- Sys.time()
+  train.data <- get(train.name)
+  # fit svm model
+  mod <- svm(formula = as.formula(formula.fashion), data = train.data, type = "C")
+  # prediction
+  y.predict <- predict(object = mod, newdata = dat.test)
+  toc <- Sys.time()
+  run_time <- (toc - tic) %>% as.numeric(., units = "secs")
+  return(list(y.predict, run_time))
+}
+```
+
+```{r load_SVM}
+# iteration on 9 sample sizes
+score.svm <- data.table()
+for (i in sample_dat){
+  mod <- model.svm(i)
+  score.svm <- rbind(score.svm, scoring(mod, i)) 
+}
+score.svm <- cbind("Model" = "Support Vector Machines", score.svm)
+datatable(score.svm)
+```
+
+### Model 4： Neural Network
+
+
+```{r code_nnt_development, eval = TRUE}
+# neural network model
+model.nnt <- function(train.name){
+  tic <- Sys.time()
+  train.data <- get(train.name)
+  train.data$label <- as.factor(train.data$label)
+
+  # fit neural network model
+  mod <- neuralnet(formula = as.formula(formula.fashion), data = train.data,
+              hidden = 10, maxit = 500)
+  
+  # prediction
+  y.predict <- predict(object = mod, newdata = dat.test, type = "class")
+  toc <- Sys.time()
+  run_time <- (toc - tic) %>% as.numeric(., units = "secs")
+  return(list(y.predict, run_time))
+}
+```
+
+
+```{r load_nnt}
+# iteration on 9 sample sizes
+score.nnt <- data.table()
+for (i in sample_dat){
+  mod <- model.nnt(i)
+  score.nnt <- rbind(score.nnt, scoring(mod, i)) 
+}
+score.nnt <- cbind("Model" = "Neural Network", score.nnt)
+datatable(score.nnt)
+model.nnt("dat_2000_3")
+z <- neuralnet(formula = as.formula(formula.fashion), data = dat_500_1,
+              hidden = c(15,10, 5))
+z$model.list
+```
+
+### Model 5
+
+
+```{r code_model5_development, eval = TRUE}
+
+```
+
+```{r load_model5}
+
+```
+
+### Model 6
+
+
+```{r code_model6_development, eval = TRUE}
+
+```
+
+```{r load_model6}
+
+```
+
+### Model 7
+
+
+```{r code_model7_development, eval = TRUE}
+
+```
+
+```{r load_model7}
+
+```
+
+### Model 8
+
+
+```{r code_model8_development, eval = TRUE}
+
+```
+
+```{r load_model8}
+
+```
+
+### Model 9
+
+
+```{r code_model9_development, eval = TRUE}
+
+```
+
+```{r load_model9}
+
+```
+
+### Model 10
+
+
+```{r code_model10_development, eval = TRUE}
+
+```
+
+```{r load_model10}
+
+```
+
+## Scoreboard
+
+```{r scoreboard}
+
+```
+
+## Discussion
+
+
+## References
+
+
