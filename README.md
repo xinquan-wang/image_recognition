@@ -6,14 +6,15 @@ The dataset we used is a set of images for different types of apparel from Zalan
 
 To solve the challenge, we first generate 9 different samples with 3 different sizes and 3 iterations respectively. For each sample, we applied the following 10 models to generate the predictive classification results.
 
--- Ridge Regression
--- K-Nearest Neighbors
--- Classification Tree
-Support Vector Machines
-Lasso Regression
-Multinomial logistic regression
-Random Forest
-Generalized Boosted Regression Models - gbm
-Generalized Boosted Regression Models - xgboost
-Ensemble model
+-- Ridge Regression  
+-- K-Nearest Neighbors  
+-- Classification Tree  
+-- Support Vector Machines  
+-- Lasso Regression  
+-- Multinomial logistic regression  
+-- Random Forest  
+-- Generalized Boosted Regression Models - gbm  
+-- Generalized Boosted Regression Models - xgboost  
+-- Ensemble model
+
 In order to evaluate their quality, we introduced a score function by balancing the sample size, running time and prediction accuracy. Based on these results, we made some comparisons between these models, identifying the "best" model for our dataset.
